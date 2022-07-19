@@ -46,14 +46,11 @@ For dataset, check [`speechcorpusy`](https://github.com/tarepan/speechcorpusy).
 3. converting F0 and waveform into *.npy format.
 
 #### Train
-Please use ./run.sh  when train an extended vavae model.
-
-Or you can use python3 train.py -m [model type]. The -m option can be used to tell the the script to train a different model.
-
-[model type] can be:
-- 'vqvae': Train original VQVAE
-- 'wavernn': train an WaveRNN model
-- 'vcf0': extended VQVAE with F0 encoder
+```bash
+python train.py -m vcf0
+# -m vqvae   # original VQVAE
+# -m wavernn # WaveRNN
+```
 
 Please modify sampling rate and other parameters in [config.py](https://github.com/nii-yamagishilab/Extended_VQVAE/blob/master/config.py) before training.  
 For Multi-gpu parallel training, please see [multi_gpu_wavernn.py](https://github.com/nii-yamagishilab/Extended_VQVAE/blob/master/multi_gpu_wavernn.py)  
