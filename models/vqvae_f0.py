@@ -29,16 +29,11 @@ class Model(nn.Module) :
     def __init__(self, rnn_dims, fc_dims, global_decoder_cond_dims, upsample_factors, normalize_vq=False,
             noise_x=False, noise_y=False):
         super().__init__()
-        self.n_vq_classes = 512
-        self.n_f0_classes = 128
-        self.vec_len = 128
         # self.channel_f0 = 128
         #self.upsample = UpsampleNetwork_F0(upsample_factors)
         #n_channels, n_classes, vec_len, normalize=False
 
-        self.vq = VectorQuant(1, self.n_vq_classes, self.vec_len, normalize=normalize_vq)
-        self.vq_f0 = VectorQuant(1, self.n_f0_classes, self.vec_len, normalize=normalize_vq)
-        #self.vq_f0 = VectorQuant(1, self.n_classes_f0, self.vec_len, normalize=normalize_vq)
+        # Content Encoder
         self.noise_x = noise_x
         self.noise_y = noise_y
         encoder_layers_wave = [
@@ -55,6 +50,12 @@ class Model(nn.Module) :
             ]
         self.encoder = DownsamplingEncoder(128, encoder_layers_wave)
 
+        # VQ_content
+        self.n_vq_classes = 512
+        self.vec_len = 128
+        self.vq = VectorQuant(1, self.n_vq_classes, self.vec_len, normalize=normalize_vq)
+
+        # Fo Encoder
         encoder_layers_f0 = [
             (2, 4, 1),
             (2, 4, 1),
@@ -68,9 +69,16 @@ class Model(nn.Module) :
             (1, 4, 1),
             ]
         self.encoder_f0 = DownsamplingEncoder(128, encoder_layers_f0)
+
+        # VQ_fo
+        self.n_f0_classes = 128
+        self.vq_f0 = VectorQuant(1, self.n_f0_classes, self.vec_len, normalize=normalize_vq)
+
+        # Joint Decoder
+        self.overtone = Overtone_f0(rnn_dims, fc_dims, self.vec_len*2, global_decoder_cond_dims)
+
         self.frame_advantage = 15
         self.num_params()
-        self.overtone = Overtone_f0(rnn_dims, fc_dims,self.vec_len*2, global_decoder_cond_dims)
 
     def forward(self, global_decoder_cond, x, samples, f0):  ##speaker , input_audio , noise+input_samples
         # x: (N, 768, 3)

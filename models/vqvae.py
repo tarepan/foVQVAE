@@ -27,9 +27,8 @@ class Model(nn.Module) :
     def __init__(self, rnn_dims, fc_dims, global_decoder_cond_dims, upsample_factors, normalize_vq=False,
             noise_x=False, noise_y=False):
         super().__init__()
-        self.n_classes = 256
-        self.overtone = Overtone(rnn_dims, fc_dims, 128, global_decoder_cond_dims)
-        self.vq = VectorQuant(1, 512, 128, normalize=normalize_vq)
+
+        # Encoder
         self.noise_x = noise_x
         self.noise_y = noise_y
         encoder_layers = [
@@ -45,6 +44,15 @@ class Model(nn.Module) :
             (1, 4, 1),
             ]
         self.encoder = DownsamplingEncoder(128, encoder_layers)
+
+        # VQ
+        self.n_vq_classes = 512
+        self.vec_len = 128
+        self.vq = VectorQuant(1, self.n_vq_classes, self.vec_len, normalize=normalize_vq)
+
+        # Decoder
+        self.overtone = Overtone(rnn_dims, fc_dims, 128, global_decoder_cond_dims)
+
         self.frame_advantage = 15
         self.num_params()
 
