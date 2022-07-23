@@ -18,8 +18,8 @@ ref_level_db = 20
 fmin = 0
 fmax = 8000
 upsample_factors = (4, 4, 4)
-checkpoint_dir = "nancy_mels-librosa_checkpoints"
-output_dir="nancy_mels-librosa_output"
+checkpoint_dir = "/content/gdrive/MyDrive/ML_results/fovqvae/default"
+output_dir = "/content/gdrive/MyDrive/ML_results/fovqvae/default"
 batch_size=50
 rnn_dims=1024
 fc_dims=1024
@@ -33,3 +33,6 @@ dim_emotion_code = 40
 test_files_txt ='/home/smg/zhaoyi/projects/neural_vocoder/data/nancy/mels-tacotron/mel-shinji/test.txt'
 test_model_path = '/home/smg/zhaoyi/projects/neural_vocoder/wavernn_test/WaveRNN_VCTK_neural_vocoder/nancy_checkpoints2/wavernn.43.upconv.pyt'
 test_output_dir = '/home/smg/zhaoyi/projects/neural_vocoder/data/nancy/samples_tacotron/samples_mel-shinji'
+
+multi_speaker_data_path = "./data"
+num_epochs = 5000

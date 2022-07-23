@@ -11,53 +11,66 @@ import glob
 import pickle
 import os
 import multiprocessing as mp
+
+from speechdatasety.interface.speechcorpusy import AbstractCorpus, ItemId # pyright: ignore [reportMissingTypeStubs]
+from speechcorpusy import load_preset                                     # pyright: ignore [reportMissingTypeStubs]; bacause of library
+
 from utils.dsp import *
 
-SEG_PATH = sys.argv[1]
+CORPUS_NAME = sys.argv[1]
 DATA_PATH = sys.argv[2]
 
-def get_files(path):
-    next_speaker_id = 0
-    speaker_ids = {}
-    filenames = []
-    for filename in glob.iglob(f'{path}/**/*.wav', recursive=True):
-        speaker_name = filename.split('/')[-2]
-        if speaker_name not in speaker_ids:
-            speaker_ids[speaker_name] = next_speaker_id
-            next_speaker_id += 1
-            filenames.append([])
-        filenames[speaker_ids[speaker_name]].append(filename)
+def get_files(corpus_name: str):
 
-    return filenames
+    corpus = load_preset(corpus_name, root=".")
+    corpus.get_contents()
 
-files = get_files(SEG_PATH)
+    all_utterances = corpus.get_identities()
+    spks = []
+    for spk in sorted(set(map(lambda item_id: item_id.speaker, all_utterances))):
+        ids_spk_x = filter(lambda item_id: item_id.speaker == spk, all_utterances)
+        path_name_x = list(map(lambda item_id: (str(corpus.get_item_path(item_id)), item_id.name), ids_spk_x))
+        spks.append(path_name_x)
 
-def process_file(i, path):
+    return spks
+
+path_name_spks = get_files(CORPUS_NAME)
+
+
+def process_file(i: int, i_path: str, name: str):
     dir = f'{DATA_PATH}/{i}'
-    name = path.split('/')[-1][:-4] # Drop .wav
-    filename = f'{dir}/{name}.npy'
-    if os.path.exists(filename):
-        print(f'{filename} already exists, skipping')
+    o_filename = f'{dir}/{name}.npy'
+    if os.path.exists(o_filename):
+        print(f'{o_filename} already exists, skipping')
         return
-    floats = load_wav(path, encode=False)
+
+    # Load
+    floats = load_wav(i_path, encode=False)
+
+    # Silent Trimming
     trimmed, _ = librosa.effects.trim(floats, top_db=25)
+
+    # float->int
     quant = (trimmed * (2**15 - 0.5) - 0.5).astype(np.int16)
+
+    # Length check
     if max(abs(quant)) < 2048:
-        print(f'audio fragment too quiet ({max(abs(quant))}), skipping: {path}')
+        print(f'audio fragment too quiet ({max(abs(quant))}), skipping: {i_path}')
         return
     if len(quant) < 10000:
-        print(f'audio fragment too short ({len(quant)} samples), skipping: {path}')
+        print(f'audio fragment too short ({len(quant)} samples), skipping: {i_path}')
         return
+
     os.makedirs(dir, exist_ok=True)
-    np.save(filename, quant)
+    np.save(o_filename, quant)
     return name
 
+
 index = []
-with mp.Pool(8) as pool:
-    for i, speaker in enumerate(files):
-        res = pool.starmap_async(process_file, [(i, path) for path in speaker]).get()
-        index.append([x for x in res if x])
-        print(f'Done processing speaker {i}')
+for i, spk_x in enumerate(path_name_spks):
+    res = [process_file(i, path, name) for (path, name) in spk_x]
+    index.append([x for x in res if x])
+    print(f'Done processing speaker {i}')
 
 os.makedirs(DATA_PATH, exist_ok=True)
 with open(f'{DATA_PATH}/index.pkl', 'wb') as f:

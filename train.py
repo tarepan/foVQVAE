@@ -27,8 +27,10 @@ import utils.logger as logger
 import time
 import subprocess
 import pytorch_warmup as warmup
+
 import config
 import models.vqvae_f0 as vqvae_f0
+
 
 parser = argparse.ArgumentParser(description='Train or run some neural net')
 parser.add_argument('--generate', '-g', action='store_true')
