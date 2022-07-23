@@ -292,7 +292,7 @@ class Model(nn.Module) :
             torch.save(self.state_dict(), paths.model_path())
             np.save(paths.step_path(), step)
             logger.log_current_status()
-            logger.log(f' <saved>; w[0][0] = {self.overtone.wavernn.gru.weight_ih_l0[0][0]}')
+            # logger.log(f' <saved>; w[0][0] = {self.overtone.wavernn.gru.weight_ih_l0[0][0]}')
             if k > saved_k + 50:
                 torch.save(self.state_dict(), paths.model_hist_path(step))
                 saved_k = k

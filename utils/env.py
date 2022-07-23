@@ -62,7 +62,7 @@ class MultispeakerDataset(Dataset):
 
     def __getitem__(self, index):
         speaker_id, name = self.all_files[index]
-        speaker_onehot = (np.arange(len(self.index)) == speaker_id).astype(np.long)
+        speaker_onehot = (np.arange(len(self.index)) == speaker_id).astype(np.long).astype(np.float32)
         audio = np.load(f'{self.path}/{speaker_id}/{name}.npy')
         return speaker_onehot, audio
 
@@ -104,7 +104,7 @@ class EmospeakerDataset(Dataset):
 
 def collate_multispeaker_samples(left_pad, window, right_pad, batch):
     samples = [x[1] for x in batch]
-    speakers_onehot = torch.FloatTensor([x[0] for x in batch])
+    speakers_onehot = torch.stack([torch.from_numpy(onehot_wave[0]) for onehot_wave in batch])
     max_offsets = [x.shape[-1] - window for x in samples]
     offsets = [np.random.randint(0, offset) for offset in max_offsets]
 

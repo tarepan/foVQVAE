@@ -22,7 +22,7 @@ DATA_PATH = sys.argv[2]
 
 def get_files(corpus_name: str):
 
-    corpus = load_preset(corpus_name, root=".")
+    corpus = load_preset(corpus_name, root="/content/gdrive/MyDrive/ML_data")
     corpus.get_contents()
 
     all_utterances = corpus.get_identities()

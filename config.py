@@ -25,8 +25,8 @@ ref_level_db = 20
 fmin = 0
 fmax = 8000
 upsample_factors = (4, 4, 4) #4*4*4=64==hop_length
-checkpoint_dir = "checkpoints"
-output_dir="outputs"
+checkpoint_dir = "/content/gdrive/MyDrive/ML_results/fovqvae/default"
+output_dir = "/content/gdrive/MyDrive/ML_results/fovqvae/default"
 test_load_part = True
 batch_size=180
 rnn_dims=1024
@@ -44,3 +44,6 @@ dim_emotion_code = 40
 test_files_txt = 'data/test.scp'
 test_model_path = 'checkpoints/vcf0.43.upconv.pyt'
 test_output_dir = 'data/test_out'
+
+multi_speaker_data_path = "./data"
+num_epochs = 5000
