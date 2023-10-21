@@ -4,36 +4,29 @@
 # Modified: Yi Zhao (zhaoyi[at]nii.ac.jp)
 # All rights reserved.
 # ==============================================================================
-import math, pickle, os
+import os
+import time
+import random
+
 import numpy as np
 import torch
-from torch.autograd import Variable
-from torch import optim
-from torch.utils.data import DataLoader
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
 from utils.dsp import *
-import sys
-import time
-from layers.overtone import Overtone, Overtone_f0
+from layers.overtone import Overtone_f0
 from layers.vector_quant import VectorQuant
 from layers.downsampling_encoder import DownsamplingEncoder
 import utils.env as env
 import utils.logger as logger
-import random
-from layers.upsample import UpsampleNetwork_F0
-import pytorch_warmup as warmup
 import config
 
-class Model(nn.Module) :
-    def __init__(self, rnn_dims, fc_dims, global_decoder_cond_dims, upsample_factors, normalize_vq=False,
-            noise_x=False, noise_y=False):
-        super().__init__()
-        # self.channel_f0 = 128
-        #self.upsample = UpsampleNetwork_F0(upsample_factors)
-        #n_channels, n_classes, vec_len, normalize=False
 
-        # Content Encoder
+class Model(nn.Module) :
+    def __init__(self, rnn_dims, fc_dims, global_decoder_cond_dims, upsample_factors, normalize_vq=False, noise_x=False, noise_y=False):
+        super().__init__()
+
+        # Content Encoder - 10 layers
         self.noise_x = noise_x
         self.noise_y = noise_y
         encoder_layers_wave = [
@@ -50,12 +43,12 @@ class Model(nn.Module) :
             ]
         self.encoder = DownsamplingEncoder(128, encoder_layers_wave)
 
-        # VQ_content
+        # Content VQ - Quantized to 128-dim 512 codewords
         self.n_vq_classes = 512
         self.vec_len = 128
         self.vq = VectorQuant(1, self.n_vq_classes, self.vec_len, normalize=normalize_vq)
 
-        # Fo Encoder
+        # Fo Encoder - 10 layers
         encoder_layers_f0 = [
             (2, 4, 1),
             (2, 4, 1),
@@ -70,42 +63,36 @@ class Model(nn.Module) :
             ]
         self.encoder_f0 = DownsamplingEncoder(128, encoder_layers_f0)
 
-        # VQ_fo
+        # Fo VQ
         self.n_f0_classes = 128
         self.vq_f0 = VectorQuant(1, self.n_f0_classes, self.vec_len, normalize=normalize_vq)
 
-        # Joint Decoder
+        # Decoder
         self.overtone = Overtone_f0(rnn_dims, fc_dims, self.vec_len*2, global_decoder_cond_dims)
 
         self.frame_advantage = 15
         self.num_params()
 
     def forward(self, global_decoder_cond, x, samples, f0):  ##speaker , input_audio , noise+input_samples
+        # Encoding
         # x: (N, 768, 3)
-        #logger.log(f'x: {x.size()}')
         # samples: (N, 1022)
-        #logger.log(f'samples: {samples.size()}')
         continuous = self.encoder(samples)
-
-        #f0_upsampled = self.upsample(f0)
-
-        #continuous_f0 = self.encoder_f0 (f0_upsampled)
         continuous_f0 = self.encoder_f0 (f0)
         # continuous: (N, 14, 64)
-        #logger.log(f'continuous: {continuous.size()}')
+
+        # Quantization
         discrete, vq_pen, encoder_pen, entropy = self.vq(continuous.unsqueeze(2))
         discrete_f0, vq_pen_f0, encoder_pen_f0, entropy_f0 = self.vq_f0(continuous_f0.unsqueeze(2))
-
         discrete = discrete.squeeze(2)
         code_x = discrete
-
         discrete_f0 = discrete_f0.squeeze(2)
         n_repeat = int(code_x.shape[1]/discrete_f0.shape[1])
         code_f0 = discrete_f0.repeat (1, n_repeat + 1, 1)[:,:discrete.shape[1],:]
         codes = torch.cat((code_x, code_f0) , dim=2 )
 
-        return self.overtone(x, codes, global_decoder_cond), vq_pen.mean(), \
-                encoder_pen.mean(), entropy, vq_pen_f0.mean(), encoder_pen_f0.mean(), entropy_f0
+        # Decoding
+        return self.overtone(x, codes, global_decoder_cond), vq_pen.mean(), encoder_pen.mean(), entropy, vq_pen_f0.mean(), encoder_pen_f0.mean(), entropy_f0
 
     def after_update(self):
         self.overtone.after_update()
@@ -121,12 +108,8 @@ class Model(nn.Module) :
 
             continuous = self.encoder(samples)
 
-        #    f0_upsampled = self.upsample(f0)
-
-        #    continuous_f0 = self.encoder_f0 (f0_upsampled)
             continuous_f0 = self.encoder_f0 (f0)
             # continuous: (N, 14, 64)
-            #logger.log(f'continuous: {continuous.size()}')
             discrete, vq_pen, encoder_pen, entropy = self.vq(continuous.unsqueeze(2))
             discrete_f0, vq_pen_f0, encoder_pen_f0, entropy_f0 = self.vq_f0(continuous_f0.unsqueeze(2))
 
@@ -168,7 +151,6 @@ class Model(nn.Module) :
     def upgrade_state_dict(self, state_dict):
         out_dict = state_dict.copy()
         return out_dict
-
 
     def freeze_encoder(self):
         for name, param in self.named_parameters():
